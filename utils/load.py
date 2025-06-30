@@ -11,8 +11,8 @@ def load_price_data(tokenizer_dir = '/opt/data/tokenizers/20250603-192806/tokeni
     stockcode_df = pd.read_csv(tokenizer_dir / 'stockcode_counts.csv')
     sku_shares_df = pd.read_csv(tokenizer_dir / 'sku_shares.pandas_df')
     
-    # Create mapping from stockcode to name
-    stockcode_to_name = dict(zip(stockcode_df['key'], sku_shares_df['Name']))
+    # Create mapping from stockcode to name, ensuring we only map the columns that exist in sku_shares
+    stockcode_to_name = dict(zip(sku_shares_df['StockCode'], sku_shares_df['Name']))
     
     # Validate that the number of elements matches
     if len(priceperiod_dict) != len(period_prices):
@@ -33,13 +33,6 @@ def load_price_data(tokenizer_dir = '/opt/data/tokenizers/20250603-192806/tokeni
             f"Number of rows in sku_shares ({len(sku_shares_df)}) "
             f"does not match number of columns in period_prices ({period_prices.shape[1]})"
         )
-    print(f"Successfully loaded data:")
-    print(f"- Number of price periods: {len(priceperiod_dict)}")
-    print(f"- Shape of period_prices array: {period_prices.shape}")
-    print(f"- Number of stockcodes: {len(stockcode_df)}")
-    print(f"- Number of SKU shares: {len(sku_shares_df)}")
-
-    
     
     return priceperiod_dict, period_prices, stockcode_df, sku_shares_df, stockcode_to_name
 
@@ -49,6 +42,8 @@ def create_price_periods_df(priceperiod_dict, period_prices, stockcode_df):
     
     # Get the stockcode keys in order
     stockcode_keys = stockcode_df['key'].tolist()
+    print(f"Type of stockcode_keys: {type(stockcode_keys)}")
+    print(f"Type of first element: {type(stockcode_keys[0])}")
     
     # Process each row in period_prices
     for i, (key, value) in enumerate(priceperiod_dict.items()):

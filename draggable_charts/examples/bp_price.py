@@ -23,19 +23,21 @@ selected_format = st.selectbox(
     options=formats
 )
 
-# Filter the stockcode_to_name dict to only include names (values)
-product_names = sorted(list(stockcode_to_name.values()))
+# Get the list of stockcode numbers (as strings) from the DataFrame columns, excluding 'Format' and 'Price_period'
+stockcode_columns = [col for col in price_periods_df.columns if col not in ['Format', 'Price_period']]
 
-selected_product = st.selectbox(
-    "Select a product",
-    options=product_names
+selected_stockcode = st.selectbox(
+    "Select a stockcode",
+    options=stockcode_columns
 )
-
-# Get the stockcode for the selected product name
-selected_stockcode = [k for k, v in stockcode_to_name.items() if v == selected_product][0]
 
 # Filter the dataframe by selected format
 filtered_df = price_periods_df[price_periods_df['Format'] == selected_format]
+
+# Debug prints
+st.write("Debug info:")
+st.write(f"Selected format: {selected_format}")
+st.write(f"Selected stockcode: {selected_stockcode}, {stockcode_to_name.get(selected_stockcode if selected_stockcode == 'UNK' else int(selected_stockcode), 'Not found')}")
 
 # Get the selected column data
 selected_data = filtered_df[selected_stockcode].values
@@ -55,7 +57,7 @@ initial_data = initial_data.set_index("index")
 initial_data.index = initial_data.index.astype(str)
 
 plot_options = {
-    "title": f"Pricing plot for {selected_product} ({selected_format})", 
+    "title": f"Pricing plot for {selected_stockcode} ({selected_format})", 
     "colors": ['#ff0909', '#d3d3d3'],
     "x_label": "Week",
     "y_label": "Price",
