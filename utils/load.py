@@ -78,6 +78,76 @@ def create_price_periods_df(priceperiod_dict, period_prices, stockcode_df):
     
     return df
 
+def convert_df_back_to_period_prices(edited_df, priceperiod_dict, stockcode_df):
+    """
+    Convert an edited price periods DataFrame back to the original period_prices.npy format.
+    
+    Args:
+        edited_df: DataFrame with edited price data (sorted by Format and Price_period)
+        priceperiod_dict: Original dictionary mapping keys to values from priceperiod_counts.csv
+        stockcode_df: DataFrame with stockcode information from stockcode_counts.csv
+    
+    Returns:
+        numpy.ndarray: period_prices array in the original order
+    """
+    # Get the stockcode keys in order
+    stockcode_keys = stockcode_df['key'].tolist()
+    
+    # Create a mapping from (Format, Price_period) to row index in the edited DataFrame
+    # This allows us to look up the edited values by the original key structure
+    format_period_to_row = {}
+    for idx, row in edited_df.iterrows():
+        format_type = row['Format']
+        period = row['Price_period']
+        
+        # Handle 'UNK' case
+        if format_type == 'UNK':
+            key = 'UNK'
+        else:
+            key = f"{format_type}|{period}"
+        
+        format_period_to_row[key] = idx
+    
+    # Initialize the output array with the same shape as the original
+    num_rows = len(priceperiod_dict)
+    num_cols = len(stockcode_keys)
+    period_prices = np.zeros((num_rows, num_cols))
+    
+    # Fill the array in the original order
+    for i, (key, value) in enumerate(priceperiod_dict.items()):
+        # Get the corresponding row from the edited DataFrame
+        if key in format_period_to_row:
+            edited_row_idx = format_period_to_row[key]
+            edited_row = edited_df.iloc[edited_row_idx]
+            
+            # Extract the price values for each stockcode
+            for j, stockcode in enumerate(stockcode_keys):
+                period_prices[i, j] = edited_row[stockcode]
+        else:
+            raise ValueError(f"Key '{key}' not found in edited DataFrame")
+    
+    return period_prices
+
+def save_updated_period_prices(edited_df, priceperiod_dict, stockcode_df, output_path):
+    """
+    Save an edited price periods DataFrame back to period_prices.npy format.
+    
+    Args:
+        edited_df: DataFrame with edited price data (sorted by Format and Price_period)
+        priceperiod_dict: Original dictionary mapping keys to values from priceperiod_counts.csv
+        stockcode_df: DataFrame with stockcode information from stockcode_counts.csv
+        output_path: Path where to save the new period_prices.npy file
+    """
+    # Convert the edited DataFrame back to the original format
+    updated_period_prices = convert_df_back_to_period_prices(edited_df, priceperiod_dict, stockcode_df)
+    
+    # Save to the specified path
+    output_path = Path(output_path)
+    np.save(output_path, updated_period_prices)
+    
+    print(f"Updated period_prices saved to: {output_path}")
+    print(f"Array shape: {updated_period_prices.shape}")
+
 if __name__ == "__main__":
     priceperiod_dict, period_prices, stockcode_df, sku_shares_df, stockcode_to_name = load_price_data()
     price_periods_df = create_price_periods_df(priceperiod_dict, period_prices, stockcode_df)

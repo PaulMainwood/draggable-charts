@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from draggable_charts import line_chart
-from utils.load import load_price_data, create_price_periods_df
+from utils.load import load_price_data, create_price_periods_df, convert_df_back_to_period_prices, save_updated_period_prices
 
 st.set_page_config(layout="centered")
 
@@ -79,3 +80,52 @@ plot_options = {
 
 new_data = line_chart(data=initial_data, options=plot_options, key="Price chart")
 new_data
+
+# Add save scenario functionality
+st.subheader("Save Scenario")
+
+# Create a text input for the scenario name
+scenario_name = st.text_input("Enter scenario name:", value="scenario_1")
+
+# Create a text input for the save directory
+save_dir = st.text_input("Save directory:", value="./scenarios")
+
+# Save button
+if st.button("Save Scenario"):
+    if scenario_name and save_dir:
+        try:
+            # Create the save directory if it doesn't exist
+            save_path = Path(save_dir)
+            save_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create the full path for the new period_prices.npy file
+            output_file = save_path / f"{scenario_name}_period_prices.npy"
+            
+            # Create a copy of the original price_periods_df
+            edited_df = price_periods_df.copy()
+            
+            # Update the selected stockcode column with the new data
+            # We need to map the new_data back to the original DataFrame structure
+            # The new_data has dates as index, we need to map these back to the original format/period structure
+            
+            # Get the dates from new_data
+            new_dates = new_data.index.tolist()
+            
+            # Filter the original DataFrame to match the selected format
+            format_mask = edited_df['Format'] == selected_format
+            format_indices = edited_df[format_mask].index.tolist()
+            
+            # Update the prices for the selected stockcode
+            for i, (date_str, new_price) in enumerate(zip(new_dates, new_data['new_price'])):
+                if i < len(format_indices):
+                    edited_df.loc[format_indices[i], selected_stockcode] = new_price
+            
+            # Save the updated data
+            save_updated_period_prices(edited_df, priceperiod_dict, stockcode_df, output_file)
+            
+            st.success(f"Scenario '{scenario_name}' saved successfully to {output_file}")
+            
+        except Exception as e:
+            st.error(f"Error saving scenario: {str(e)}")
+    else:
+        st.warning("Please enter both scenario name and save directory.")
